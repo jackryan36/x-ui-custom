@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { CopyOutlined, SyncOutlined, DeleteOutlined, DownloadOutlined } from '@ant-design/icons-vue';
 import { message } from 'ant-design-vue';
-
 import {
   HttpUtil,
   IntlUtil,
@@ -15,22 +14,19 @@ import {
 import { Protocols } from '@/models/inbound.js';
 import InfinityIcon from '@/components/InfinityIcon.vue';
 import { useDatepicker } from '@/composables/useDatepicker.js';
-
 const { t } = useI18n();
 const { datepicker } = useDatepicker();
-
 // One modal handles every protocol's info / share view because the
 // legacy template did the same. The big v-if forks at the top decide
 // which sub-block of the body renders:
-//   • multi-user inbound (VMess/VLess/Trojan/SS-multi/Hysteria) → per-
-//     client row + share links
-//   • SS single-user → connection details + share link
-//   • WireGuard → secret/peers + per-peer config download
-//   • Mixed/HTTP/Tunnel → connection details only
+// • multi-user inbound (VMess/VLess/Trojan/SS-multi/Hysteria) → per-
+// client row + share links
+// • SS single-user → connection details + share link
+// • WireGuard → secret/peers + per-peer config download
+// • Mixed/HTTP/Tunnel → connection details only
 //
 // We display links via QrPanel — each link gets its own QR + copy +
 // (for WireGuard configs) download button.
-
 const props = defineProps({
   open: { type: Boolean, default: false },
   // Result of inbounds-page checkFallback() so the link-gen sees the
@@ -56,9 +52,7 @@ const props = defineProps({
   // Email -> ts (last-online unix-ms) map fetched at the page level.
   lastOnlineMap: { type: Object, default: () => ({}) },
 });
-
 const emit = defineEmits(['update:open']);
-
 // Cloned state on open so cancel doesn't leak edits onto the row's
 // parsed-cache copy. The local ref intentionally shadows the prop —
 // templates read this ref's frozen-on-open value, not props.dbInbound.
@@ -67,25 +61,20 @@ const dbInbound = ref(null);
 const inbound = ref(null);
 const clientSettings = ref(null);
 const clientStats = ref(null);
-
 const links = ref([]); // generic share links (for VMess/VLess/Trojan/SS/Hysteria)
 const wireguardConfigs = ref([]); // multi-line .conf bodies (one per peer)
 const wireguardLinks = ref([]); // wg:// share URIs (one per peer)
-
 const subLink = ref('');
 const subJsonLink = ref('');
-
 // IP-log state (matches the legacy refresh / clear flow).
 const refreshing = ref(false);
 const clientIpsArray = ref([]);
 const clientIpsText = ref('');
-
 // === Status flags shown as tags ====================================
 const isEnable = computed(() => {
   if (clientSettings.value) return !!clientSettings.value.enable;
   return dbInbound.value?.enable ?? true;
 });
-
 const isDepleted = computed(() => {
   const stats = clientStats.value;
   const settings = clientSettings.value;
@@ -97,23 +86,19 @@ const isDepleted = computed(() => {
   if (expiry > 0 && Date.now() >= expiry) return true;
   return false;
 });
-
 function statsColor(stats) {
   return ColorUtils.usageColor(stats.up + stats.down, props.trafficDiff, stats.total);
 }
-
 function getRemainingStats() {
   if (!clientStats.value || !clientSettings.value) return '-';
   const remained = clientStats.value.total - clientStats.value.up - clientStats.value.down;
   return remained > 0 ? SizeFormatter.sizeFormat(remained) : '-';
 }
-
 function formatLastOnline(email) {
   const ts = props.lastOnlineMap[email];
   if (!ts) return '-';
   return IntlUtil.formatDate(ts, datepicker.value);
 }
-
 // === IP log ========================================================
 function formatIpInfo(record) {
   if (record == null) return '';
@@ -132,7 +117,6 @@ function formatIpInfo(record) {
     .replace(',', '');
   return `${ip} (${timeStr})`;
 }
-
 async function loadClientIps() {
   if (!clientStats.value?.email) return;
   refreshing.value = true;
@@ -161,7 +145,6 @@ async function loadClientIps() {
     refreshing.value = false;
   }
 }
-
 async function clearClientIps() {
   if (!clientStats.value?.email) return;
   const msg = await HttpUtil.post(`/panel/api/inbounds/clearClientIps/${clientStats.value.email}`);
@@ -170,18 +153,14 @@ async function clearClientIps() {
     clientIpsText.value = t('tgbot.noIpRecord');
   }
 }
-
 async function copyText(value) {
   const ok = await ClipboardManager.copyText(String(value ?? ''));
   if (ok) message.success(t('copied'));
 }
-
 function downloadText(content, filename) {
   FileManager.downloadTextFile(content, filename);
 }
-
 const activeTab = ref('client');
-
 // === Build state on open ===========================================
 function genSubLink(subId) {
   return (props.subSettings.subURI || '') + subId;
@@ -189,15 +168,12 @@ function genSubLink(subId) {
 function genSubJsonLink(subId) {
   return (props.subSettings.subJsonURI || '') + subId;
 }
-
 watch(() => props.open, (next) => {
   if (!next) return;
   if (!props.dbInbound) return;
-
   activeTab.value = props.dbInbound.toInbound().clients?.length ? 'client' : 'inbound';
   dbInbound.value = props.dbInbound;
   inbound.value = props.dbInbound.toInbound();
-
   const idx = props.clientIndex ?? 0;
   if (inbound.value.clients?.length) {
     clientSettings.value = inbound.value.clients[idx] || null;
@@ -207,7 +183,6 @@ watch(() => props.open, (next) => {
   clientStats.value = clientSettings.value
     ? (props.dbInbound.clientStats || []).find((s) => s.email === clientSettings.value.email) || null
     : null;
-
   // Generate links per protocol — WireGuard has its own .conf body
   // path; everything else flows through genAllLinks.
   if (inbound.value.protocol === Protocols.WIREGUARD) {
@@ -224,7 +199,6 @@ watch(() => props.open, (next) => {
     wireguardConfigs.value = [];
     wireguardLinks.value = [];
   }
-
   // Subscription link is per-client because each client has its own subId.
   if (clientSettings.value?.subId) {
     subLink.value = genSubLink(clientSettings.value.subId);
@@ -235,7 +209,6 @@ watch(() => props.open, (next) => {
     subLink.value = '';
     subJsonLink.value = '';
   }
-
   // Auto-load IP log if it'll be visible.
   clientIpsArray.value = [];
   clientIpsText.value = '';
@@ -247,25 +220,121 @@ watch(() => props.open, (next) => {
     loadClientIps();
   }
 });
-
 function close() {
   emit('update:open', false);
 }
-
 // === Convenience displays ===========================================
 const networkLabel = computed(() => inbound.value?.stream?.network || '');
 const securityLabel = computed(() => inbound.value?.stream?.security || 'none');
 const securityColor = computed(() => (securityLabel.value === 'none' ? 'red' : 'green'));
 const encryptionLabel = computed(() => inbound.value?.settings?.encryption || '');
 const serverNameLabel = computed(() => inbound.value?.serverName || '');
-
 // === Tab visibility =================================================
 const showClientTab = computed(() => !!clientSettings.value);
 const showSubscriptionTab = computed(
   () => !!(props.subSettings.enable && clientSettings.value?.subId),
 );
-</script>
 
+// === New: JSON fragment export =====================================
+const fragmentPreset = ref('2-10');
+const generatingJson = ref(false);
+const currentFullJson = ref('');
+
+async function generateAndDownloadJson() {
+  if (!clientSettings.value || !inbound.value) {
+    message.error('اطلاعات کلاینت ناقص است');
+    return;
+  }
+
+  generatingJson.value = true;
+
+  try {
+    // استفاده از منطق داخلی پنل برای ساخت base config
+    const baseConfig = inbound.value.toClientConfig ? 
+      inbound.value.toClientConfig(clientSettings.value) : 
+      generateBasicClientConfig();
+
+    // اعمال Fragment
+    if (baseConfig.outbounds && baseConfig.outbounds[0]) {
+      const ob = baseConfig.outbounds[0];
+      if (!ob.streamSettings) ob.streamSettings = {};
+      
+      ob.streamSettings.finalmask = {
+        "tcp": [{
+          "type": "fragment",
+          "settings": {
+            "packets": "1-1",
+            "length": fragmentPreset.value,
+            "delay": "0-0"
+          }
+        }]
+      };
+    }
+
+    currentFullJson.value = JSON.stringify(baseConfig, null, 2);
+
+    const filename = `config-${clientSettings.value.email || 'client'}.json`;
+    downloadText(currentFullJson.value, filename);
+    message.success('JSON با موفقیت ساخته و دانلود شد');
+
+  } catch (err) {
+    console.error(err);
+    message.error('خطا در ساخت JSON: ' + err.message);
+  } finally {
+    generatingJson.value = false;
+  }
+}
+
+function generateBasicClientConfig() {
+  return {
+    "version": { "min": "24.0.0" },
+    "log": { "loglevel": "warning" },
+    "dns": {
+      "servers": [{ "address": "https://8.8.8.8/dns-query", "tag": "remote-dns" }]
+    },
+    "inbounds": [
+      {
+        "listen": "127.0.0.1",
+        "port": 10808,
+        "protocol": "mixed",
+        "settings": { "auth": "noauth", "udp": true },
+        "sniffing": { "enabled": true, "destOverride": ["http", "tls"] },
+        "tag": "mixed-in"
+      }
+    ],
+    "outbounds": [{
+      "protocol": inbound.value.protocol.toLowerCase(),
+      "settings": {
+        "vnext": [{
+          "address": dbInbound.value.address || "127.0.0.1",
+          "port": dbInbound.value.port,
+          "users": [{
+            "id": clientSettings.value.id || clientSettings.value.password || "",
+            "encryption": "none",
+            "flow": clientSettings.value.flow || ""
+          }]
+        }]
+      },
+      "streamSettings": inbound.value.stream || { "network": "tcp", "security": "none" },
+      "tag": "proxy"
+    }],
+    "routing": {
+      "domainStrategy": "IPIfNonMatch",
+      "rules": [
+        { "inboundTag": ["mixed-in"], "outboundTag": "proxy", "type": "field" }
+      ]
+    }
+  };
+}
+
+function copyFullJson() {
+  if (currentFullJson.value) {
+    copyText(currentFullJson.value);
+  } else {
+    message.info('اول JSON را تولید کنید');
+  }
+}
+</script>
 <template>
   <a-modal :open="open" :title="t('pages.inbounds.inboundData')" :footer="null" width="640px" @cancel="close">
     <template v-if="dbInbound && inbound">
@@ -372,7 +441,6 @@ const showSubscriptionTab = computed(
               </tr>
             </tbody>
           </table>
-
           <!-- Remaining / total / expiry -->
           <table class="info-table summary-table">
             <thead>
@@ -412,7 +480,6 @@ const showSubscriptionTab = computed(
               </tr>
             </tbody>
           </table>
-
           <!-- Telegram chat id -->
           <template v-if="tgBotEnable && clientSettings.tgId">
             <a-divider>Telegram</a-divider>
@@ -427,7 +494,6 @@ const showSubscriptionTab = computed(
               </a-tooltip>
             </div>
           </template>
-
           <!-- Per-client share links (no QR) -->
           <template v-if="dbInbound.hasLink() && links.length > 0">
             <a-divider>{{ t('pages.inbounds.copyLink') }}</a-divider>
@@ -445,7 +511,6 @@ const showSubscriptionTab = computed(
               <code class="link-panel-text">{{ link.link }}</code>
             </div>
           </template>
-
           <!-- Subscription URLs — folded into the client tab so they sit
                with the rest of the per-client data. Only visible when
                subscriptions are enabled and this client has a subId. -->
@@ -464,7 +529,6 @@ const showSubscriptionTab = computed(
               </div>
               <a :href="subLink" target="_blank" rel="noopener noreferrer" class="link-panel-anchor">{{ subLink }}</a>
             </div>
-
             <div v-if="subSettings.subJsonEnable && subJsonLink" class="link-panel">
               <div class="link-panel-header">
                 <a-tag color="green">JSON</a-tag>
@@ -480,8 +544,27 @@ const showSubscriptionTab = computed(
               }}</a>
             </div>
           </template>
-        </a-tab-pane>
 
+          <!-- Full JSON Export Section -->
+          <a-divider>Full Client Config JSON + Fragment</a-divider>
+          <div class="json-export-section">
+            <a-select v-model:value="fragmentPreset" style="width: 280px; margin-bottom: 8px;">
+              <a-select-option value="2-10">Length: 2-10 (پیشنهادی)</a-select-option>
+              <a-select-option value="3-12">Length: 3-12</a-select-option>
+              <a-select-option value="1-5">Length: 1-5 (سبک)</a-select-option>
+              <a-select-option value="4-15">Length: 4-15</a-select-option>
+              <a-select-option value="5-20">Length: 5-20</a-select-option>
+            </a-select>
+
+            <a-button type="primary" @click="generateAndDownloadJson" :loading="generatingJson">
+              <DownloadOutlined /> تولید و دانلود JSON
+            </a-button>
+
+            <a-button @click="copyFullJson" style="margin-left: 8px;">
+              <CopyOutlined /> کپی JSON
+            </a-button>
+          </div>
+        </a-tab-pane>
         <!-- ============================================================
              TAB 2 — Inbound: protocol, transport, security, per-protocol
         ============================================================== -->
@@ -499,7 +582,6 @@ const showSubscriptionTab = computed(
               <dt>{{ t('pages.inbounds.port') }}</dt>
               <dd><a-tag>{{ dbInbound.port }}</a-tag></dd>
             </div>
-
             <template v-if="dbInbound.isVMess || dbInbound.isVLess || dbInbound.isTrojan || dbInbound.isSS">
               <div class="info-row">
                 <dt>{{ t('transmission') }}</dt>
@@ -538,7 +620,6 @@ const showSubscriptionTab = computed(
                 </div>
               </template>
             </template>
-
             <template v-if="dbInbound.hasLink()">
               <div class="info-row">
                 <dt>{{ t('security') }}</dt>
@@ -566,7 +647,6 @@ const showSubscriptionTab = computed(
               </div>
             </template>
           </dl>
-
           <!-- Shadowsocks single-user details -->
           <table v-if="dbInbound.isSS" class="info-table block">
             <tbody>
@@ -584,7 +664,6 @@ const showSubscriptionTab = computed(
               </tr>
             </tbody>
           </table>
-
           <!-- Tunnel -->
           <dl v-if="inbound.protocol === Protocols.TUNNEL" class="info-list info-list-block">
             <div class="info-row">
@@ -608,7 +687,6 @@ const showSubscriptionTab = computed(
               </dd>
             </div>
           </dl>
-
           <!-- Mixed -->
           <dl v-if="dbInbound.isMixed" class="info-list info-list-block">
             <div class="info-row">
@@ -649,7 +727,6 @@ const showSubscriptionTab = computed(
               </div>
             </template>
           </dl>
-
           <!-- HTTP accounts -->
           <dl v-if="dbInbound.isHTTP && inbound.settings.accounts?.length" class="info-list info-list-block">
             <div v-for="(account, idx) in inbound.settings.accounts" :key="idx" class="info-row">
@@ -668,7 +745,6 @@ const showSubscriptionTab = computed(
               </dd>
             </div>
           </dl>
-
           <!-- WireGuard server config + peers -->
           <table v-if="dbInbound.isWireguard" class="info-table protocol-table wg-table">
             <tbody>
@@ -756,7 +832,6 @@ const showSubscriptionTab = computed(
               </template>
             </tbody>
           </table>
-
           <!-- Single-user SS share link (no QR) -->
           <template v-if="dbInbound.isSS && !inbound.isSSMultiUser && links.length > 0">
             <a-divider>{{ t('pages.inbounds.copyLink') }}</a-divider>
@@ -779,28 +854,23 @@ const showSubscriptionTab = computed(
     </template>
   </a-modal>
 </template>
-
 <style scoped>
 .info-table {
   width: 100%;
   border-collapse: collapse;
 }
-
 .info-table.block {
   margin-bottom: 10px;
 }
-
 .info-table td,
 .info-table th {
   padding: 4px 8px;
   vertical-align: top;
 }
-
 .info-table th {
   text-align: center;
   font-weight: 500;
 }
-
 .info-large-tag {
   max-width: 100%;
   overflow: hidden;
@@ -808,7 +878,6 @@ const showSubscriptionTab = computed(
   white-space: nowrap;
   display: inline-block;
 }
-
 /* Stacked label/value list — one row per field. Long values wrap
  * (or fall through to a code block) so they never blow out the modal. */
 .info-list {
@@ -817,7 +886,6 @@ const showSubscriptionTab = computed(
   display: flex;
   flex-direction: column;
 }
-
 .info-row {
   display: grid;
   grid-template-columns: 140px minmax(0, 1fr);
@@ -826,55 +894,46 @@ const showSubscriptionTab = computed(
   padding: 6px 0;
   border-bottom: 1px solid rgba(128, 128, 128, 0.12);
 }
-
 .info-row:last-child {
   border-bottom: none;
 }
-
 /* When info-list is rendered as a second block (e.g. protocol details
  * after the top transport/security block), give it a small top spacing
  * so the two groups read as separate. */
 .info-list-block {
   margin-top: 10px;
 }
-
 .account-row {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-
 .account-sep {
   opacity: 0.55;
   font-weight: 600;
 }
-
 .info-row dt {
   margin: 0;
   font-size: 13px;
   opacity: 0.75;
 }
-
 .info-row dd {
   margin: 0;
   min-width: 0;
 }
-
 .value-tag {
   max-width: 100%;
   white-space: normal;
   word-break: break-all;
   display: inline-block;
 }
-
 .value-block {
   display: flex;
   align-items: flex-start;
   gap: 6px;
   min-width: 0;
 }
-
 .value-code {
   flex: 1;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -887,15 +946,12 @@ const showSubscriptionTab = computed(
   user-select: all;
   min-width: 0;
 }
-
 :global(body.dark) .value-code {
   background: rgba(255, 255, 255, 0.05);
 }
-
 .value-copy {
   flex-shrink: 0;
 }
-
 .security-line {
   display: flex;
   align-items: center;
@@ -903,37 +959,31 @@ const showSubscriptionTab = computed(
   gap: 6px;
   margin: 8px 0;
 }
-
 .security-line span {
   font-size: 13px;
   opacity: 0.75;
 }
-
 .summary-table {
   width: 100%;
   text-align: center;
   margin: 10px 0;
 }
-
 .tg-row {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-
 .ip-log {
   max-height: 150px;
   overflow-y: auto;
   text-align: left;
 }
-
 .ip-log-row {
   display: block;
   margin: 2px 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
 }
-
 .ip-log-actions {
   display: flex;
   gap: 12px;
@@ -941,15 +991,12 @@ const showSubscriptionTab = computed(
   font-size: 16px;
   cursor: pointer;
 }
-
 .protocol-table {
   margin-top: 10px;
 }
-
 .wg-table td {
   word-break: break-all;
 }
-
 /* Reusable copy/link panel that replaces QrPanel for the no-QR design. */
 .link-panel {
   border: 1px solid rgba(128, 128, 128, 0.2);
@@ -960,14 +1007,12 @@ const showSubscriptionTab = computed(
   flex-direction: column;
   gap: 6px;
 }
-
 .link-panel-header {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-
 .link-panel-text {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
@@ -978,11 +1023,9 @@ const showSubscriptionTab = computed(
   border-radius: 4px;
   user-select: all;
 }
-
 :global(body.dark) .link-panel-text {
   background: rgba(255, 255, 255, 0.05);
 }
-
 .link-panel-anchor {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 11px;
@@ -995,17 +1038,26 @@ const showSubscriptionTab = computed(
   text-decoration-color: rgba(22, 119, 255, 0.4);
   transition: background 120ms ease, text-decoration-color 120ms ease;
 }
-
 .link-panel-anchor:hover {
   background: rgba(22, 119, 255, 0.08);
   text-decoration-color: var(--ant-color-primary, #1677ff);
 }
-
 :global(body.dark) .link-panel-anchor {
   background: rgba(255, 255, 255, 0.05);
 }
-
 :global(body.dark) .link-panel-anchor:hover {
   background: rgba(22, 119, 255, 0.16);
+}
+
+/* New JSON export section style */
+.json-export-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(0,0,0,0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(128,128,128,0.15);
+}
+:global(body.dark) .json-export-section {
+  background: rgba(255,255,255,0.03);
 }
 </style>
